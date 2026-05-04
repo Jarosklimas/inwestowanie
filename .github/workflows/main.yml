@@ -1,0 +1,30 @@
+name: Gieldowy Bot Analityczny
+
+on:
+  schedule:
+    # Czas w GitHubie podawany jest w UTC. Polska to UTC+2 (latem).
+    # 6:30 UTC = 8:30 PL | 12:30 UTC = 14:30 PL | 20:30 UTC = 22:30 PL
+    - cron: '30 6,12,20 * * 1-5' # Uruchamia się w pon-pt o tych 3 godzinach
+  workflow_dispatch: # Pozwala ręcznie uruchomić bota z poziomu GitHuba
+
+jobs:
+  analiza:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Pobieranie plików repozytorium
+      uses: actions/checkout@v3
+
+    - name: Instalacja Pythona
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Instalacja bibliotek
+      run: pip install -r requirements.txt
+
+    - name: Uruchomienie Bota
+      env:
+        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      run: python scripts/gieldowy_bot_analityczny.py
