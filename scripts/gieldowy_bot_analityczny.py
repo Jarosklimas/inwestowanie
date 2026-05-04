@@ -152,3 +152,4 @@ if __name__ == "__main__":
         print("✅ Analiza zakończona. Raport wysłany na Telegram!")
     else:
         print("⚪ Rynek stabilny, brak mocnych sygnałów.")
+        wyslij_telegram(wiadomosc_telegram)
