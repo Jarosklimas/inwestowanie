@@ -11,8 +11,9 @@ warnings.filterwarnings('ignore')
 
 PLIK_PORTFELA = "invest_grupy.json"
 # Klucze Telegram zaciągane z bezpiecznego środowiska (GitHub Secrets)
-TELEGRAM_TOKEN = "8725724228:AAHj-xQtVV87YQyE7ZQfdCgGyM6ICCX2520"
-TELEGRAM_CHAT_ID = '7510513100'
+# Klucze Telegram zaciągane z bezpiecznego środowiska (GitHub Secrets)
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
 domyslne_grupy = {"💼 MÓJ PORTFEL": ['PKO.WA', 'AAPL']}
 
