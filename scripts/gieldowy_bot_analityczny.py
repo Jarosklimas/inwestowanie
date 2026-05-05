@@ -9,7 +9,7 @@ import requests
 
 warnings.filterwarnings('ignore')
 
-PLIK_PORTFELA = "invest_grupy.json"
+PLIK_PORTFELA = "scripts/invest_grupy.json"
 
 # Bezpieczne pobieranie kluczy
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip(' \'"')
