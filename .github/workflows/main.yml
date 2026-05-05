@@ -5,7 +5,7 @@ on:
     # Czas w GitHubie podawany jest w UTC. Polska to UTC+2 (latem).
     # 6:30 UTC = 8:30 PL | 12:30 UTC = 14:30 PL | 20:30 UTC = 22:30 PL
     - cron: '30 6,12,20 * * 1-5' # Uruchamia się w pon-pt o tych 3 godzinach
-  workflow_dispatch: # Pozwala ręcznie uruchomić bota z poziomu GitHuba
+  workflow_dispatch: # Pozwala ręcznie uruchomić bota z poziomu GitHuba manualmie
 
 jobs:
   analiza:
