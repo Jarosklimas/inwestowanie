@@ -11,8 +11,8 @@ warnings.filterwarnings('ignore')
 
 PLIK_PORTFELA = "moje_grupy.json"
 # Klucze Telegram zaciągane z bezpiecznego środowiska (GitHub Secrets)
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip(' \'"')
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip(' \'"')
 
 # --- DODAJ TE DWIE LINIJKI DO TESTÓW ---
 print(f"🔍 DEBUG KLUczy: Token załadowany: {'TAK' if TELEGRAM_TOKEN else 'NIE'}")
@@ -40,10 +40,15 @@ def wyslij_telegram(wiadomosc):
         return
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": wiadomosc, "parse_mode": "HTML"}
-    try:
-        requests.post(url, data=payload)
+   try:
+        r = requests.post(url, data=payload)
+        # Zmuszamy bota do powiedzenia nam prawdy o statusie wysyłki!
+        if r.status_code != 200:
+            print(f"❌ Odrzucono przez Telegram! Kod: {r.status_code} | Powód: {r.text}")
+        else:
+            print("✅ Wiadomość Telegram wysłana do Ciebie z pełnym sukcesem!")
     except Exception as e:
-        print(f"Błąd wysyłania na Telegram: {e}")
+        print(f"❌ Krytyczny błąd połączenia z Telegramem: {e}")
 
 konfiguracja_interwalow = {"1h": "3mo", "4h": "1y", "1d": "2y", "1wk": "10y"}
 
