@@ -9,15 +9,10 @@ import requests
 
 warnings.filterwarnings('ignore')
 
-PLIK_PORTFELA = "moje_grupy.json"
+PLIK_PORTFELA = "invest_grupy.json"
 # Klucze Telegram zaciągane z bezpiecznego środowiska (GitHub Secrets)
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
-
-# --- DODAJ TE DWIE LINIJKI DO TESTÓW ---
-print(f"🔍 DEBUG KLUczy: Token załadowany: {'TAK' if TELEGRAM_TOKEN else 'NIE'}")
-print(f"🔍 DEBUG KLUczy: Chat ID załadowany: {'TAK' if TELEGRAM_CHAT_ID else 'NIE'}")
-# --------------------------------------
+TELEGRAM_TOKEN = "8725724228:AAHj-xQtVV87YQyE7ZQfdCgGyM6ICCX2520"
+TELEGRAM_CHAT_ID = '7510513100'
 
 domyslne_grupy = {"💼 MÓJ PORTFEL": ['PKO.WA', 'AAPL']}
 
@@ -48,23 +43,37 @@ def wyslij_telegram(wiadomosc):
 konfiguracja_interwalow = {"1h": "3mo", "4h": "1y", "1d": "2y", "1wk": "10y"}
 
 def pobierz_dane_wskaznikow(ticker, interwal, zakres):
-    # (Tutaj znajduje się cała matematyka RSI/MACD/Krzyże z poprzedniego kodu)
     try:
         dane = yf.download(ticker, period=zakres, interval=interwal, progress=False)
         if dane.empty or len(dane) < 200: return None
 
+        # --- Klasyczne wskaźniki (SMA, RSI, MACD) ---
         dane['SMA_50'] = dane['Close'].rolling(window=50).mean()
         dane['SMA_200'] = dane['Close'].rolling(window=200).mean()
+        
         delta = dane['Close'].diff()
         rs = (delta.where(delta > 0, 0).ewm(alpha=1/14, adjust=False).mean()) / (-delta.where(delta < 0, 0).ewm(alpha=1/14, adjust=False).mean())
         dane['RSI'] = 100 - (100 / (1 + rs))
+        
         dane['MACD'] = dane['Close'].ewm(span=12, adjust=False).mean() - dane['Close'].ewm(span=26, adjust=False).mean()
         dane['Signal_Line'] = dane['MACD'].ewm(span=9, adjust=False).mean()
 
+        # --- NOWOŚĆ: Obliczanie ATR (Zmienności) do Stop Lossa ---
+        dane['High-Low'] = dane['High'] - dane['Low']
+        dane['High-PrevClose'] = abs(dane['High'] - dane['Close'].shift(1))
+        dane['Low-PrevClose'] = abs(dane['Low'] - dane['Close'].shift(1))
+        dane['TrueRange'] = dane[['High-Low', 'High-PrevClose', 'Low-PrevClose']].max(axis=1)
+        dane['ATR'] = dane['TrueRange'].rolling(window=14).mean()
+
+        # --- Pobieranie dzisiejszych wartości ---
         ostatnia_cena = round(dane['Close'].iloc[-1].item(), 2)
         rsi = round(dane['RSI'].iloc[-1].item(), 1)
         macd = dane['MACD'].iloc[-1].item()
         sygnal_macd = dane['Signal_Line'].iloc[-1].item()
+        atr = dane['ATR'].iloc[-1].item()
+        
+        # Bezpieczny Stop Loss (1.5x średniego dziennego zasięgu poniżej ceny)
+        stop_loss = round(ostatnia_cena - (1.5 * atr), 2)
         
         stan_krzyza = "Brak trendu"
         if dane['SMA_50'].iloc[-1].item() > dane['SMA_200'].iloc[-1].item(): stan_krzyza = "✨ Złoty Krzyż"
@@ -74,7 +83,13 @@ def pobierz_dane_wskaznikow(ticker, interwal, zakres):
         if (30 <= rsi <= 50) and (macd > sygnal_macd): decyzja = "🟢 KUPUJ"
         elif rsi >= 70 and (macd < sygnal_macd): decyzja = "🔴 SPRZEDAJ"
 
-        return {"Cena": ostatnia_cena, "Trend": stan_krzyza, "RSI": rsi, "Decyzja": decyzja}
+        return {
+            "Cena": ostatnia_cena, 
+            "Trend": stan_krzyza, 
+            "RSI": rsi, 
+            "Decyzja": decyzja, 
+            "Stop_Loss": stop_loss
+        }
     except Exception: return None
 
 def generuj_ostateczna_decyzje(dane_spolki):
@@ -140,16 +155,28 @@ if __name__ == "__main__":
                 wynik = pobierz_dane_wskaznikow(spolka, interwal, zakres)
                 if wynik: wyniki_wszystkie[spolka]["Dane"][interwal] = wynik
 
-    # --- GENEROWANIE RAPORTU ---
+    ## --- GENEROWANIE RAPORTU ---
+    # --- GENEROWANIE RAPORTU I WYSYŁKA ---
     wiadomosc_telegram = "<b>🤖 RAPORT GIEŁDOWY:</b>\n\n"
     znaleziono_sygnaly = False
 
     for spolka, info in wyniki_wszystkie.items():
         decyzja = generuj_ostateczna_decyzje(info["Dane"])
-        cena = info["Dane"].get('1d', {}).get('Cena', 'Brak')
         
+        # Wyciągamy cenę i sugerowany Stop Loss wyliczony na podstawie interwału dziennego (najpewniejszego)
+        cena = info["Dane"].get('1d', {}).get('Cena', 'Brak')
+        sugerowany_sl = info["Dane"].get('1d', {}).get('Stop_Loss', 'Brak')
+        
+        # Filtrujemy tylko silne sygnały decyzyjne
         if "🔥" in decyzja or "🟢" in decyzja or "🚨" in decyzja or "🔴" in decyzja:
-            wiadomosc_telegram += f"[{spolka}] {cena}\n👉 {decyzja}\n\n"
+            wiadomosc_telegram += f"[{spolka}] Cena: <b>{cena}</b>\n"
+            wiadomosc_telegram += f"👉 {decyzja}\n"
+            
+            # Pokazujemy SL tylko jeśli algorytm sugeruje wejście/utrzymanie pozycji wzrostowej
+            if "KUPUJ" in decyzja:
+                wiadomosc_telegram += f"🛡️ <b>Zalecany Stop Loss: {sugerowany_sl}</b>\n"
+                
+            wiadomosc_telegram += "\n"
             znaleziono_sygnaly = True
 
     if znaleziono_sygnaly:
@@ -157,4 +184,5 @@ if __name__ == "__main__":
         print("✅ Analiza zakończona. Raport wysłany na Telegram!")
     else:
         print("⚪ Rynek stabilny, brak mocnych sygnałów.")
+        #wyslij_telegram(wiadomosc_telegram)
         wyslij_telegram("Test GitHuba: Rynek stabilny, bot działa, ale brak mocnych sygnałów dzisiaj.")
