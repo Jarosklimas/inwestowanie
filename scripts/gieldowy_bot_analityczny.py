@@ -10,10 +10,10 @@ import requests
 warnings.filterwarnings('ignore')
 
 PLIK_PORTFELA = "invest_grupy.json"
-# Klucze Telegram zaciągane z bezpiecznego środowiska (GitHub Secrets)
-# Klucze Telegram zaciągane z bezpiecznego środowiska (GitHub Secrets)
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
+
+# Bezpieczne pobieranie kluczy
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip(' \'"')
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip(' \'"')
 
 domyslne_grupy = {"💼 MÓJ PORTFEL": ['PKO.WA', 'AAPL']}
 
@@ -29,18 +29,38 @@ def zapisz_portfel(grupy):
     with open(PLIK_PORTFELA, 'w', encoding='utf-8') as f:
         json.dump(grupy, f, indent=4, ensure_ascii=False)
 
-def wyslij_telegram(wiadomosc):
-    """Funkcja wysyłająca powiadomienie na Twój telefon"""
+# --- ULEPSZONA FUNKCJA: WYSYŁANIE PLIKÓW ---
+def wyslij_telegram(wiadomosc, sciezka_do_pliku=None):
+    """Wysyła wiadomość tekstową oraz opcjonalnie załącznik plikowy"""
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
         print("⚠️ Brak kluczy Telegram. Wiadomość pokazana tylko w konsoli.")
         return
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": TELEGRAM_CHAT_ID, "text": wiadomosc, "parse_mode": "HTML"}
+        
     try:
-        requests.post(url, data=payload)
-    except Exception as e:
-        print(f"Błąd wysyłania na Telegram: {e}")
+        if sciezka_do_pliku and os.path.exists(sciezka_do_pliku):
+            # Tryb wysyłania DOKUMENTU (Pliku Excel)
+            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument"
+            with open(sciezka_do_pliku, 'rb') as plik:
+                files = {'document': plik}
+                payload = {"chat_id": TELEGRAM_CHAT_ID, "caption": wiadomosc, "parse_mode": "HTML"}
+                r = requests.post(url, data=payload, files=files)
+        else:
+            # Tryb wysyłania SAMEJ WIADOMOŚCI
+            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+            payload = {"chat_id": TELEGRAM_CHAT_ID, "text": wiadomosc, "parse_mode": "HTML"}
+            r = requests.post(url, data=payload)
 
+        if r.status_code != 200:
+            print(f"❌ Odrzucono przez Telegram! Kod: {r.status_code} | Powód: {r.text}")
+        else:
+            print("✅ Raport wysłany na Telegram z sukcesem!")
+            
+    except Exception as e:
+        print(f"❌ Krytyczny błąd połączenia z Telegramem: {e}")
+
+# ==========================================
+# GŁÓWNY SILNIK ANALITYCZNY
+# ==========================================
 konfiguracja_interwalow = {"1h": "3mo", "4h": "1y", "1d": "2y", "1wk": "10y"}
 
 def pobierz_dane_wskaznikow(ticker, interwal, zakres):
@@ -48,7 +68,6 @@ def pobierz_dane_wskaznikow(ticker, interwal, zakres):
         dane = yf.download(ticker, period=zakres, interval=interwal, progress=False)
         if dane.empty or len(dane) < 200: return None
 
-        # --- Klasyczne wskaźniki (SMA, RSI, MACD) ---
         dane['SMA_50'] = dane['Close'].rolling(window=50).mean()
         dane['SMA_200'] = dane['Close'].rolling(window=200).mean()
         
@@ -59,21 +78,18 @@ def pobierz_dane_wskaznikow(ticker, interwal, zakres):
         dane['MACD'] = dane['Close'].ewm(span=12, adjust=False).mean() - dane['Close'].ewm(span=26, adjust=False).mean()
         dane['Signal_Line'] = dane['MACD'].ewm(span=9, adjust=False).mean()
 
-        # --- NOWOŚĆ: Obliczanie ATR (Zmienności) do Stop Lossa ---
         dane['High-Low'] = dane['High'] - dane['Low']
         dane['High-PrevClose'] = abs(dane['High'] - dane['Close'].shift(1))
         dane['Low-PrevClose'] = abs(dane['Low'] - dane['Close'].shift(1))
         dane['TrueRange'] = dane[['High-Low', 'High-PrevClose', 'Low-PrevClose']].max(axis=1)
         dane['ATR'] = dane['TrueRange'].rolling(window=14).mean()
 
-        # --- Pobieranie dzisiejszych wartości ---
         ostatnia_cena = round(dane['Close'].iloc[-1].item(), 2)
         rsi = round(dane['RSI'].iloc[-1].item(), 1)
         macd = dane['MACD'].iloc[-1].item()
         sygnal_macd = dane['Signal_Line'].iloc[-1].item()
         atr = dane['ATR'].iloc[-1].item()
         
-        # Bezpieczny Stop Loss (1.5x średniego dziennego zasięgu poniżej ceny)
         stop_loss = round(ostatnia_cena - (1.5 * atr), 2)
         
         stan_krzyza = "Brak trendu"
@@ -84,17 +100,10 @@ def pobierz_dane_wskaznikow(ticker, interwal, zakres):
         if (30 <= rsi <= 50) and (macd > sygnal_macd): decyzja = "🟢 KUPUJ"
         elif rsi >= 70 and (macd < sygnal_macd): decyzja = "🔴 SPRZEDAJ"
 
-        return {
-            "Cena": ostatnia_cena, 
-            "Trend": stan_krzyza, 
-            "RSI": rsi, 
-            "Decyzja": decyzja, 
-            "Stop_Loss": stop_loss
-        }
+        return {"Cena": ostatnia_cena, "Trend": stan_krzyza, "RSI": rsi, "Decyzja": decyzja, "Stop_Loss": stop_loss}
     except Exception: return None
 
 def generuj_ostateczna_decyzje(dane_spolki):
-    # (Logika Multi-Timeframe z 1D włączonym do decyzji)
     if not all(k in dane_spolki for k in ['1h', '4h', '1d', '1wk']): return "⚠️ Błąd danych"
     hossa = "Złoty Krzyż" in dane_spolki['1wk']['Trend'] or "Złoty Krzyż" in dane_spolki['1d']['Trend']
     bessa = "Krzyż Śmierci" in dane_spolki['1wk']['Trend'] or "Krzyż Śmierci" in dane_spolki['1d']['Trend']
@@ -121,69 +130,89 @@ if __name__ == "__main__":
 
     moje_grupy = zaladuj_portfel()
 
-    # --- ZARZĄDZANIE PORTFELEM ---
     if args.usun_grupe:
         if args.usun_grupe in moje_grupy:
             del moje_grupy[args.usun_grupe]
             zapisz_portfel(moje_grupy)
-            print(f"🗑️ Usunięto całą grupę: {args.usun_grupe}")
         exit()
-
     if args.dodaj:
         symbol, grupa = args.dodaj.upper(), args.grupa
         if grupa not in moje_grupy: moje_grupy[grupa] = []
         if symbol not in moje_grupy[grupa]:
             moje_grupy[grupa].append(symbol)
             zapisz_portfel(moje_grupy)
-            print(f"✅ Dodano {symbol} do: {grupa}")
         exit()
-
     if args.usun:
         symbol, grupa = args.usun.upper(), args.grupa
         if grupa in moje_grupy and symbol in moje_grupy[grupa]:
             moje_grupy[grupa].remove(symbol)
             zapisz_portfel(moje_grupy)
-            print(f"🗑️ Usunięto {symbol} z: {grupa}")
         exit()
 
-    # --- ANALIZA GŁÓWNA ---
+    # --- ZBIERANIE DANYCH ---
     wyniki_wszystkie = {} 
     for nazwa_grupy, lista_spolek in moje_grupy.items():
         for spolka in lista_spolek:
             if spolka not in wyniki_wszystkie:
-                wyniki_wszystkie[spolka] = {"Dane": {}}
+                wyniki_wszystkie[spolka] = {"Grupa": nazwa_grupy, "Dane": {}}
             for interwal, zakres in konfiguracja_interwalow.items():
                 wynik = pobierz_dane_wskaznikow(spolka, interwal, zakres)
                 if wynik: wyniki_wszystkie[spolka]["Dane"][interwal] = wynik
 
-    ## --- GENEROWANIE RAPORTU ---
-    # --- GENEROWANIE RAPORTU I WYSYŁKA ---
-    wiadomosc_telegram = "<b>🤖 RAPORT GIEŁDOWY:</b>\n\n"
+    # --- TWORZENIE PLIKU EXCEL ---
+    data_raportu = datetime.now().strftime('%Y-%m-%d_%H-%M')
+    nazwa_pliku = f"Raport_Gieldowy_{data_raportu}.xlsx"
+    lista_podsumowania = []
+    
+    # Tworzymy listę do głównej zakładki
+    for spolka, info in wyniki_wszystkie.items():
+        decyzja = generuj_ostateczna_decyzje(info["Dane"])
+        cena = info["Dane"].get('1d', {}).get('Cena', 'Brak')
+        sl = info["Dane"].get('1d', {}).get('Stop_Loss', 'Brak')
+        
+        lista_podsumowania.append({
+            "Grupa": info["Grupa"],
+            "Symbol": spolka,
+            "Cena": cena,
+            "REKOMENDACJA": decyzja,
+            "Stop Loss (1d)": sl,
+            "Trend Główny (1wk)": info["Dane"].get('1wk', {}).get('Trend', '-'),
+            "RSI Dzienny (1d)": info["Dane"].get('1d', {}).get('RSI', '-')
+        })
+
+    with pd.ExcelWriter(nazwa_pliku, engine='openpyxl') as writer:
+        pd.DataFrame(lista_podsumowania).to_excel(writer, sheet_name="🌟 PODSUMOWANIE", index=False)
+        for interwal in konfiguracja_interwalow.keys():
+            dane_zakladki = []
+            for spolka, info in wyniki_wszystkie.items():
+                if interwal in info["Dane"]:
+                    wiersz = {"Grupa": info["Grupa"], "Symbol": spolka}
+                    wiersz.update(info["Dane"][interwal])
+                    dane_zakladki.append(wiersz)
+            if dane_zakladki:
+                pd.DataFrame(dane_zakladki).to_excel(writer, sheet_name=f"Szczegóły_{interwal}", index=False)
+
+    # --- BUDOWANIE WIADOMOŚCI TELEGRAM ---
+    wiadomosc_telegram = "<b>🤖 TWÓJ RAPORT GIEŁDOWY:</b>\n\n"
     znaleziono_sygnaly = False
 
     for spolka, info in wyniki_wszystkie.items():
         decyzja = generuj_ostateczna_decyzje(info["Dane"])
-        
-        # Wyciągamy cenę i sugerowany Stop Loss wyliczony na podstawie interwału dziennego (najpewniejszego)
         cena = info["Dane"].get('1d', {}).get('Cena', 'Brak')
         sugerowany_sl = info["Dane"].get('1d', {}).get('Stop_Loss', 'Brak')
         
-        # Filtrujemy tylko silne sygnały decyzyjne
         if "🔥" in decyzja or "🟢" in decyzja or "🚨" in decyzja or "🔴" in decyzja:
-            wiadomosc_telegram += f"[{spolka}] Cena: <b>{cena}</b>\n"
-            wiadomosc_telegram += f"👉 {decyzja}\n"
-            
-            # Pokazujemy SL tylko jeśli algorytm sugeruje wejście/utrzymanie pozycji wzrostowej
+            wiadomosc_telegram += f"[{spolka}] Cena: <b>{cena}</b>\n👉 {decyzja}\n"
             if "KUPUJ" in decyzja:
-                wiadomosc_telegram += f"🛡️ <b>Zalecany Stop Loss: {sugerowany_sl}</b>\n"
-                
+                wiadomosc_telegram += f"🛡️ SL: {sugerowany_sl}\n"
             wiadomosc_telegram += "\n"
             znaleziono_sygnaly = True
 
-    if znaleziono_sygnaly:
-        wyslij_telegram(wiadomosc_telegram)
-        print("✅ Analiza zakończona. Raport wysłany na Telegram!")
-    else:
-        print("⚪ Rynek stabilny, brak mocnych sygnałów.")
-        #wyslij_telegram(wiadomosc_telegram)
-        wyslij_telegram("Test GitHuba: Rynek stabilny, bot działa, ale brak mocnych sygnałów dzisiaj.")
+    # Niezależnie od sygnałów, ZAWSZE wysyłamy plik na Telegram
+    if not znaleziono_sygnaly:
+        wiadomosc_telegram += "⚪ <b>Rynek stabilny.</b> Brak nowych mocnych sygnałów (wszystko w statusie Czekaj/Ignoruj).\n\n"
+        
+    wiadomosc_telegram += "📊 <i>Pełna analiza wszystkich wskaźników znajduje się w załączonym pliku Excel.</i>"
+
+    # WYSYŁKA
+    wyslij_telegram(wiadomosc_telegram, sciezka_do_pliku=nazwa_pliku)
