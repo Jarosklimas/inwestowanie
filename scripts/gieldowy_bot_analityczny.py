@@ -14,6 +14,11 @@ PLIK_PORTFELA = "moje_grupy.json"
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID")
 
+# --- DODAJ TE DWIE LINIJKI DO TESTÓW ---
+print(f"🔍 DEBUG KLUczy: Token załadowany: {'TAK' if TELEGRAM_TOKEN else 'NIE'}")
+print(f"🔍 DEBUG KLUczy: Chat ID załadowany: {'TAK' if TELEGRAM_CHAT_ID else 'NIE'}")
+# --------------------------------------
+
 domyslne_grupy = {"💼 MÓJ PORTFEL": ['PKO.WA', 'AAPL']}
 
 def zaladuj_portfel():
