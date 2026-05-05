@@ -11,12 +11,22 @@ warnings.filterwarnings('ignore')
 
 PLIK_PORTFELA = "moje_grupy.json"
 # Klucze Telegram zaciągane z bezpiecznego środowiska (GitHub Secrets)
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip(' \'"')
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip(' \'"')
+
+# --- ZMIANA: KLUCZE WPISANE NA SZTYWNO ---
+TELEGRAM_TOKEN = "8725724228:AAHj-xQtVV87YQyE7ZQfdCgGyM6ICCX2520"
+TELEGRAM_CHAT_ID = "7510513100"
+# ------------------------------------------
+
+# --- DODAJ TE DWIE LINIJKI DO TESTÓW (uproszczone) ---
+print(f"🔍 DEBUG KLUczy: Token to: {TELEGRAM_TOKEN[:5]}... (Zamaskowany)")
+print(f"🔍 DEBUG KLUczy: Chat ID to: {TELEGRAM_CHAT_ID}")
+
+#TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "").strip(' \'"')
+#TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip(' \'"')
 
 # --- DODAJ TE DWIE LINIJKI DO TESTÓW ---
-print(f"🔍 DEBUG KLUczy: Token załadowany: {'TAK' if TELEGRAM_TOKEN else 'NIE'}")
-print(f"🔍 DEBUG KLUczy: Chat ID załadowany: {'TAK' if TELEGRAM_CHAT_ID else 'NIE'}")
+#print(f"🔍 DEBUG KLUczy: Token załadowany: {'TAK' if TELEGRAM_TOKEN else 'NIE'}")
+#print(f"🔍 DEBUG KLUczy: Chat ID załadowany: {'TAK' if TELEGRAM_CHAT_ID else 'NIE'}")
 # --------------------------------------
 
 domyslne_grupy = {"💼 MÓJ PORTFEL": ['PKO.WA', 'AAPL']}
