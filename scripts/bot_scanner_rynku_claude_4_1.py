@@ -167,7 +167,7 @@ def tv_info(ticker: str) -> tuple[str, str] | None:
 
 
 # ══════════════════════════════════════════════════════════════
-PLIK_PORTFELA    = "invest_grupy.json"
+PLIK_PORTFELA    = "scripts/invest_grupy.json"
 DOMYSLNE_GRUPY   = {"💼 MÓJ PORTFEL": ["PKO.WA", "AAPL", "KGHM.WA"]}
 TELEGRAM_TOKEN   = os.environ.get("TELEGRAM_TOKEN",   "").strip(" '\"")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "").strip(" '\"")
