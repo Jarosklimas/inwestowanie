@@ -32,5 +32,5 @@ jobs:
         if: always()
         with:
           name: raport-${{ github.run_id }}
-          path: Raport_QuantRadar_*.xlsx
+          path: Raport_InvestRadar_*.xlsx
           retention-days: 30
