@@ -1,3 +1,5 @@
 yfinance
 pandas
 openpyxl
+tradingview_ta
+requests
