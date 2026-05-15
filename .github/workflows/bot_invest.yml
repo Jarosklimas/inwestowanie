@@ -1,0 +1,9 @@
+# Plik: .github/workflows/invest.yml
+name: 🧘‍♂️ INVEST RADAR
+on:
+  schedule:
+    - cron: '0 8 * * 6' # 10:00 rano tylko w Sobotę (6. dzień tygodnia)
+  workflow_dispatch:
+jobs:
+  # ... (standardowa konfiguracja) ...
+    run: python scripts/bot_do_analizy_rynku_gemini.py --profil invest
