@@ -18,8 +18,8 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: 📦 Instalacja
-        run: pip install tradingview_ta pandas openpyxl requests
+      - name: 📦 Instalacja bibliotek
+        run: pip install -r requirements.txt
 
       - name: 🤖 Uruchom bota
         env:
