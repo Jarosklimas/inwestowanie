@@ -12,7 +12,7 @@ import random
 
 warnings.filterwarnings('ignore')
 
-PLIK_PORTFELA = "invest_grupy.json"
+PLIK_PORTFELA = "scripts/invest_grupy.json"
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "8725724228:AAHj-xQtVV87YQyE7ZQfdCgGyM6ICCX2520").strip(' \'"')
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "7510513100").strip(' \'"')
 
