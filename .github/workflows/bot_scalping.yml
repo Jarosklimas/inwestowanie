@@ -1,0 +1,9 @@
+# Plik: .github/workflows/scalping.yml
+name: 🏃 SCALPING RADAR
+on:
+  schedule:
+    - cron: '0 8,11,14,17,19 * * 1-5' # Godziny 10, 13, 16, 19, 21 w Polsce
+  workflow_dispatch:
+jobs:
+  # ... (standardowa konfiguracja checkout i python) ...
+    run: python scripts/bot_do_analizy_rynku_gemini.py --profil scalping
