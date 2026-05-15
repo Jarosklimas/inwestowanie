@@ -1,0 +1,9 @@
+# Plik: .github/workflows/swing.yml
+name: 🚶 SWING RADAR
+on:
+  schedule:
+    - cron: '30 5,20 * * 1-5' # 7:30 i 22:30 w Polsce (pon-pt)
+  workflow_dispatch:
+jobs:
+  # ... (standardowa konfiguracja) ...
+    run: python scripts/bot_do_analizy_rynku_gemini.py --profil swing
