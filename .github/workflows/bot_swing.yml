@@ -1,9 +1,36 @@
 # Plik: .github/workflows/swing.yml
 name: 🚶 SWING RADAR
+
 on:
   schedule:
     - cron: '30 5,20 * * 1-5' # 7:30 i 22:30 w Polsce (pon-pt)
   workflow_dispatch:
+
 jobs:
-  # ... (standardowa konfiguracja) ...
-    run: python scripts/bot_do_analizy_rynku_gemini.py --profil swing
+  analiza:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10        # v4.0: ~20s zamiast 5min → limit skrócony
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Instalacja
+        run: pip install tradingview_ta pandas openpyxl requests
+
+      - name: 🤖 Uruchom bota
+        env:
+          TELEGRAM_TOKEN:   ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scripts/bot_do_analizy_rynku_gemini.py --profil swing
+
+      - name: 💾 Zapisz raport
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: raport-${{ github.run_id }}
+          path: Raport_SWING_Radar_*.xlsx
+          retention-days: 30
